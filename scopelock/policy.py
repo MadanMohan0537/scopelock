@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from copy import deepcopy
 from typing import Any
 
 from .models import PolicyDecision, ToolCall, ToolSpec
@@ -20,7 +21,7 @@ DEFAULT_POLICY: dict[str, Any] = {
 
 class PolicyEngine:
     def __init__(self, policy: dict[str, Any] | None = None):
-        self.policy = policy or DEFAULT_POLICY
+        self.policy = deepcopy(DEFAULT_POLICY if policy is None else policy)
 
     def evaluate(self, call: ToolCall, spec: ToolSpec) -> PolicyDecision:
         scopes = self.policy.get("agents", {}).get(call.agent_id, [])
@@ -49,3 +50,4 @@ class PolicyEngine:
         if spec.risk == "high":
             return PolicyDecision("approval_required", ("high_risk_tool",), 1)
         return PolicyDecision("allow", ("policy_satisfied",))
+
