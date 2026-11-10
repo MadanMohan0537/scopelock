@@ -19,5 +19,5 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: |
           scopelock --db scopelock.db --json report.json
-          python -c "import json; r=json.load(open('report.json')); assert r['migration_rehearsal']['recommendation'] == 'promote'; assert r['migration_rehearsal']['changed_calls'] == 2"
+          python -c "import json; r=json.load(open('report.json')); assert r['migration_rehearsal']['recommendation'] == 'promote'; assert r['migration_rehearsal']['changed_calls'] == 2; s=r['sequence_experiment']; assert s['blocked_attacks'] == 2; assert s['benign_executed'] == 3; assert s['audit_chain_valid']; assert s['split_transfer']['evidence']['cumulative_amount'] == 120.0"
 

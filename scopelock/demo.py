@@ -12,6 +12,58 @@ from copy import deepcopy
 from hashlib import sha256
 
 
+def run_sequence_experiment() -> dict:
+    gateway = build_gateway()
+    timestamp = "2026-10-09T12:00:00+00:00"
+    read = ToolCall(
+        "seq-read", "operator", "crm.read",
+        {"customer_id": "customer-7"}, timestamp,
+    )
+    exfiltrate = ToolCall(
+        "seq-exfil", "operator", "email.send",
+        {"to": "collector@outside.test", "subject": "customer export"},
+        timestamp,
+    )
+    first_transfer = ToolCall(
+        "seq-transfer-1", "operator", "ledger.transfer",
+        {"amount": 60, "recipient": "vendor-42"}, timestamp,
+    )
+    second_transfer = ToolCall(
+        "seq-transfer-2", "operator", "ledger.transfer",
+        {"amount": 60, "recipient": "vendor-42"}, timestamp,
+    )
+    gateway.handle(read)
+    exfiltration_result = gateway.handle(exfiltrate)
+    gateway.handle(first_transfer)
+    split_result = gateway.handle(second_transfer)
+    reset_actions = gateway.reset_sequence("operator", timestamp, "new task boundary")
+    benign = [
+        gateway.handle(ToolCall(
+            "benign-1", "operator", "ledger.transfer",
+            {"amount": 40, "recipient": "vendor-42"}, timestamp,
+        )),
+        gateway.handle(ToolCall(
+            "benign-2", "operator", "ledger.transfer",
+            {"amount": 50, "recipient": "vendor-42"}, timestamp,
+        )),
+        gateway.handle(ToolCall(
+            "benign-email", "operator", "email.send",
+            {"to": "ops@example.test", "subject": "complete"}, timestamp,
+        )),
+    ]
+    return {
+        "read_then_external_email": exfiltration_result.detail["sequence"],
+        "split_transfer": split_result.detail["sequence"],
+        "reset_actions": reset_actions,
+        "benign_outcomes": [item.outcome for item in benign],
+        "blocked_attacks": sum(
+            item.outcome == "denied" for item in (exfiltration_result, split_result)
+        ),
+        "benign_executed": sum(item.outcome == "executed" for item in benign),
+        "audit_chain_valid": gateway.audit.verify(),
+    }
+
+
 def run_demo(audit_path: str = "scopelock.db") -> dict:
     gateway = build_gateway(audit_path)
     now = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
@@ -64,5 +116,6 @@ def run_demo(audit_path: str = "scopelock.db") -> dict:
         "audit_chain_valid": gateway.audit.verify(),
         "binding_experiment": {"original_executed": results[-2].outcome == "executed", "mutated_rejected": results[-1].outcome == "approval_required"},
         "migration_rehearsal": migration,
+        "sequence_experiment": run_sequence_experiment(),
     }
 

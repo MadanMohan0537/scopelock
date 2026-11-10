@@ -23,6 +23,8 @@ class ToyEnvironment:
             return deepcopy(self.crm[str(arguments["customer_id"])])
         if tool == "email.send":
             message = {"to": str(arguments["to"]), "subject": str(arguments["subject"])}
+            if "body" in arguments:
+                message["body"] = str(arguments["body"])
             self.outbox.append(message)
             return {"sent": True, **message}
         if tool == "ledger.transfer":
@@ -34,3 +36,4 @@ class ToyEnvironment:
             self.ledger[recipient] += amount
             return {"transferred": amount, "recipient": recipient}
         raise KeyError("unknown_tool")
+
