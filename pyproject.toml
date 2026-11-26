@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scopelock"
-version = "0.2.0"
-description = "Least-privilege and sequence-aware policy gateway for AI agent tools"
+version = "0.3.0"
+description = "Least-privilege policy gateway with sequence and approval-capacity controls"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}

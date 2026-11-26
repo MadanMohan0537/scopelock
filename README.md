@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MadanMohan0537/scopelock/actions/workflows/ci.yml/badge.svg)](https://github.com/MadanMohan0537/scopelock/actions/workflows/ci.yml)
 
-ScopeLock is a local, dependency-free authorization gateway between AI agents and the tools they call. It enforces least privilege, readable rules, dry runs, approval thresholds, approval-bound execution, sequence-aware controls, and a tamper-evident audit trail.
+ScopeLock is a local, dependency-free authorization gateway between AI agents and the tools they call. It enforces least privilege, readable rules, dry runs, approval thresholds, approval-bound execution, sequence-aware controls, approval-capacity gates, and a tamper-evident audit trail.
 
 > **Project Lab traceability:** catalog Project 06, originally “Tool Permission and Policy Engine.” ScopeLock is the product name; this metadata prevents the renamed idea from being built twice.
 
@@ -22,6 +22,7 @@ Giving an agent a broad API credential turns one hallucinated argument or inject
 - **P1 approval binding:** hash canonical arguments, tool name, and tool version; enforce expiry and reject modified requests at execution time.
 - **P2 policy migration rehearsal:** replay a redacted synthetic call corpus under versioned old and new policies, explain every transition, and block promotion when observed changes differ from the predeclared change set.
 - **Sequence-aware policy:** keep a bounded per-agent history, block read-then-external-email and split-transfer chains, emit exact matched-call evidence, and support an explicit audited task-boundary reset.
+- **Approval workload budget:** run seeded base/surge queue simulations, report p50/p95 offered wait, abandonment and utilization, sweep service-time assumptions, and block rollout when any declared scenario breaches its SLA.
 
 Authentication, Slack approvals, OPA/Cedar integration, production tool adapters, durable distributed sequence state, network isolation, and a hosted review UI are planned—not implemented.
 
@@ -95,6 +96,22 @@ The frozen experiment exercises two attacks that the original per-call rules all
 
 A benign fixture executes two transfers totaling `$90` plus an internal email. Histories are isolated by agent, contain only successful executions, and evict the oldest action after five records by default. `reset_sequence` explicitly starts a new task boundary and appends the reset reason and removed-action count to the audit chain. Dry runs expose the prospective sequence decision without recording an action.
 
+## Approval workload experiment
+
+The demo includes a reproducible eight-hour FCFS queue rehearsal with two
+approvers, a 10-minute p95 wait SLA, and a 5% abandonment budget. Requests and
+service times come from seeded exponential distributions:
+
+| Scenario | Arrivals | p95 offered wait | Abandonment | Result |
+|---|---:|---:|---:|---|
+| Base: 6/hour, 6-minute service | 37 | 0.25 min | 0% | Pass |
+| Surge: 18/hour, 6-minute service | 135 | 11.10 min | 0% | Block |
+
+The sensitivity sweep holds the same arrival samples and varies mean service
+time from 0.75× to 1.5×. Only 0.75× passes both scenarios, showing that the
+recommendation depends materially on handling time. These are synthetic queue
+mechanics, not measured staffing forecasts.
+
 ## Policy example
 
 ```python
@@ -114,16 +131,16 @@ assert result.outcome == "executed"
 
 ## Security and limitations
 
-ScopeLock is a portfolio-scale reference implementation, not a production security boundary. The in-process caller could bypass it; approver identities are strings; the SQLite hash chain detects accidental or unsophisticated edits but is not externally anchored; canonical JSON does not capture external state; and the toy tools do not model real provider failure semantics. Sequence state is process-local and resets on restart; the external-email rule relies on configured domains, and count-bounded windows can both miss slow attacks and block legitimate cumulative work. Migration rehearsal covers only its saved corpus, rejects obvious secret-bearing fields but does not prove full de-identification, and cannot predict novel future calls. See [the threat model](docs/THREAT_MODEL.md).
+ScopeLock is a portfolio-scale reference implementation, not a production security boundary. The in-process caller could bypass it; approver identities are strings; the SQLite hash chain detects accidental or unsophisticated edits but is not externally anchored; canonical JSON does not capture external state; and the toy tools do not model real provider failure semantics. Sequence state is process-local and resets on restart; the external-email rule relies on configured domains, and count-bounded windows can both miss slow attacks and block legitimate cumulative work. Migration rehearsal covers only its saved corpus, rejects obvious secret-bearing fields but does not prove full de-identification, and cannot predict novel future calls. Queue results are assumption-sensitive and omit priorities, shifts, outages, and reviewer accuracy; a wait-time pass says nothing about approval correctness. See [the threat model](docs/THREAT_MODEL.md).
 
 ## Roadmap
 
-The rigorously specified [backlog](docs/BACKLOG.md) compares proposed features with shipped controls. The next priority is approval-capacity modeling, followed by signed policy bundles.
+The rigorously specified [backlog](docs/BACKLOG.md) compares proposed features with shipped controls. The next priority is signed policy bundles, followed by idempotency keys.
 
 ## Repository structure
 
 ```text
-scopelock/       gateway, rules, bounded sequence guard, approvals, migration rehearsal, audit log, demo tools
+scopelock/       gateway, rules, bounded sequence guard, approvals, migration rehearsal, queue model, audit log, demo tools
 tests/           deterministic policy and attack-path tests
 docs/            threat model and evidence-driven backlog
 .github/         CI across Python 3.11–3.13

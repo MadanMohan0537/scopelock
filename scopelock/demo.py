@@ -10,6 +10,7 @@ from .migration import PolicyVersion, ReplayCall, rehearse_policy
 from .policy import DEFAULT_POLICY
 from copy import deepcopy
 from hashlib import sha256
+from .workload import default_workload_budget
 
 
 def run_sequence_experiment() -> dict:
@@ -117,5 +118,6 @@ def run_demo(audit_path: str = "scopelock.db") -> dict:
         "binding_experiment": {"original_executed": results[-2].outcome == "executed", "mutated_rejected": results[-1].outcome == "approval_required"},
         "migration_rehearsal": migration,
         "sequence_experiment": run_sequence_experiment(),
+        "approval_workload_budget": default_workload_budget(),
     }
 
